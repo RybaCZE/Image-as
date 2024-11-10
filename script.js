@@ -1,76 +1,71 @@
+// script.js
 if (typeof browser.contextMenus !== "undefined") {
   browser.contextMenus.create({
     id: "convert-to-png",
     title: "Download as PNG",
     contexts: ["image"],
   });
-
   browser.contextMenus.create({
     id: "convert-to-jpeg",
     title: "Download as JPEG",
     contexts: ["image"],
   });
-
   browser.contextMenus.create({
-    id: "convert-to-Webp",
-    title: "Download as Webp",
+    id: "convert-to-webp",
+    title: "Download as WebP",
     contexts: ["image"],
   });
 
-  // Listen for clicks on the context menu
   browser.contextMenus.onClicked.addListener((info, tab) => {
-    switch (info.menuItemId) {
-      case "convert-to-png":
-        browser.tabs.executeScript(tab.id, {
-          code: `
-            convertImage('${info.srcUrl}', 'png');
-          `,
-        });
-        break;
+    const format = info.menuItemId.split("-").pop(); // png, jpeg, or webp
+    browser.tabs.sendMessage(tab.id, {
+      action: "convertImage",
+      url: info.srcUrl,
+      format: format,
+    });
+  });
+} else {
+  // Content script context
+  browser.runtime.onMessage.addListener(async (message) => {
+    if (message.action === "convertImage") {
+      try {
+        // Fetch the image first
+        const response = await fetch(message.url);
+        const blob = await response.blob();
 
-      case "convert-to-jpeg":
-        browser.tabs.executeScript(tab.id, {
-          code: `
-            convertImage('${info.srcUrl}', 'jpeg');
-          `,
-        });
-        break;
+        // Convert blob to data URL
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          const img = new Image();
+          img.onload = function () {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
 
-      case "convert-to-Webp":
-        browser.tabs.executeScript(tab.id, {
-          code: `
-            convertImage('${info.srcUrl}', 'webp');
-          `,
-        });
-        break;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
 
-      default:
-        break;
+            // Get filename from URL or use default
+            const fileName =
+              message.url.split("/").pop().split("?")[0] || "image";
+
+            // Convert and download
+            canvas.toBlob((blob) => {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = `${fileName}.${message.format}`;
+              link.click();
+              URL.revokeObjectURL(url);
+            }, `image/${message.format}`);
+          };
+          img.src = reader.result;
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        alert("Could not download image. It might be protected.");
+        console.error(error);
+      }
     }
   });
-}
-
-function convertImage(imageURL, format) {
-  var img = new Image();
-  img.crossOrigin = "Anonymous";
-
-  img.src = imageURL;
-
-  img.onload = function () {
-    var canvas = document.createElement("canvas");
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    var ctx = canvas.getContext("2d");
-    ctx.drawImage(img, 0, 0);
-
-    var fileNamee = document.title.split("/").pop().split(".").shift().trim();
-
-    var imgData = canvas.toDataURL("image/" + format);
-    console.log(imageURL);
-    var link = document.createElement("a");
-    link.href = imgData;
-    link.download = fileNamee + "." + format;
-    link.click();
-  };
 }

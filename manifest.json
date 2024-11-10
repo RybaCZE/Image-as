@@ -3,7 +3,7 @@
   "name": "Image as",
   "version": "1.0",
   "description": "Allows you to download images as an PNG, JPEG or Webp",
-  "permissions": ["contextMenus", "activeTab"],
+  "permissions": ["contextMenus", "activeTab", "<all_urls>"],
   "background": {
     "scripts": ["script.js"]
   },
@@ -14,6 +14,6 @@
     }
   ],
   "icons": {
-    "96": "icon/ico.png"
+    "96": "Icon/ico.png"
   }
 }
